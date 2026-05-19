@@ -17,7 +17,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -49,7 +49,8 @@ interface RecordsResponse {
   total_pages: number;
 }
 
-export default function DatasetDetailPage({ params }: { params: { id: string } }) {
+export default function DatasetDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const canCreate = canCreateRecords(user);
@@ -57,16 +58,16 @@ export default function DatasetDetailPage({ params }: { params: { id: string } }
   const [page, setPage] = useState(1);
 
   const { data: dataset, isLoading: loadingDS, error: errorDS } = useQuery<Dataset>({
-    queryKey: ['dataset', params.id],
-    queryFn: () => api.get<Dataset>(`/datasets/${params.id}`),
+    queryKey: ['dataset', id],
+    queryFn: () => api.get<Dataset>(`/datasets/${id}`),
   });
 
   const { data: recordsData, isLoading: loadingRec, error: errorRec } = useQuery<RecordsResponse>({
-    queryKey: ['records', params.id, searchQuery, page],
+    queryKey: ['records', id, searchQuery, page],
     queryFn: async () => {
       const q = new URLSearchParams({ page: page.toString(), page_size: '20' });
       if (searchQuery) q.append('search', searchQuery);
-      return api.get<RecordsResponse>(`/datasets/${params.id}/records?${q}`);
+      return api.get<RecordsResponse>(`/datasets/${id}/records?${q}`);
     },
     enabled: !!dataset,
   });
@@ -96,7 +97,7 @@ export default function DatasetDetailPage({ params }: { params: { id: string } }
                 {dataset.ai_indexed && <span className="text-purple-600">AI 索引</span>}
               </div>
             </div>
-            {canCreate && <button onClick={() => router.push(`/datasets/${params.id}/new`)} className="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">新增记录</button>}
+            {canCreate && <button onClick={() => router.push(`/datasets/${id}/new`)} className="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">新增记录</button>}
           </div>
         </div>
       </div>
@@ -112,7 +113,7 @@ export default function DatasetDetailPage({ params }: { params: { id: string } }
           <div className="text-center py-12">
             <h3 className="text-sm font-medium text-gray-900">暂无记录</h3>
             <p className="mt-1 text-sm text-gray-500">{searchQuery ? '没有找到符合条件的记录' : '开始创建第一条记录'}</p>
-            {canCreate && !searchQuery && <button onClick={() => router.push(`/datasets/${params.id}/new`)} className="mt-6 px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">新增记录</button>}
+            {canCreate && !searchQuery && <button onClick={() => router.push(`/datasets/${id}/new`)} className="mt-6 px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">新增记录</button>}
           </div>
         )}
         {!loadingRec && !errorRec && recordsData && recordsData.items.length > 0 && (
@@ -134,8 +135,8 @@ export default function DatasetDetailPage({ params }: { params: { id: string } }
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">v{r.version}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(r.updated_at).toLocaleString('zh-CN')}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                        <Link href={`/datasets/${params.id}/${r.id}`} className="text-blue-600 hover:text-blue-900 mr-4">查看</Link>
-                        <Link href={`/datasets/${params.id}/${r.id}/edit`} className="text-blue-600 hover:text-blue-900">编辑</Link>
+                        <Link href={`/datasets/${id}/${r.id}`} className="text-blue-600 hover:text-blue-900 mr-4">查看</Link>
+                        <Link href={`/datasets/${id}/${r.id}/edit`} className="text-blue-600 hover:text-blue-900">编辑</Link>
                       </td>
                     </tr>
                   ))}
