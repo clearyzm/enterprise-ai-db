@@ -1,0 +1,65 @@
+Run started:2026-05-14 02:14:42.763212+00:00
+
+Test results:
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: app/ai\retriever.py:157:14
+156	    # Note: 1 - (embedding <=> :q) converts distance to similarity score [0, 1]
+157	    sql = f"""
+158	        SELECT 
+159	            id,
+160	            dataset_id,
+161	            record_id,
+162	            text,
+163	            sensitivity,
+164	            source_field,
+165	            department_id,
+166	            1 - (embedding <=> :q::vector) AS score
+167	        FROM chunks
+168	        WHERE {where_clause}
+169	        ORDER BY embedding <=> :q::vector
+170	        LIMIT :k
+171	    """
+172	    
+
+--------------------------------------------------
+>> Issue: [B307:blacklist] Use of possibly insecure function - consider using safer ast.literal_eval.
+   Severity: Medium   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b307-eval
+   Location: app/ai\tools.py:81:21
+80	            expression = expression.replace(",", "")
+81	            result = eval(expression, {"__builtins__": {}}, {})
+82	            logger.debug("tool.compute.success", expression=expression, result=result)
+
+--------------------------------------------------
+>> Issue: [B104:hardcoded_bind_all_interfaces] Possible binding to all interfaces.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-605 (https://cwe.mitre.org/data/definitions/605.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b104_hardcoded_bind_all_interfaces.html
+   Location: app/config.py:21:20
+20	    APP_DEBUG: bool = False
+21	    APP_HOST: str = "0.0.0.0"
+22	    APP_PORT: int = 8000
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 9680
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 4
+		Medium: 3
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 1
+		Medium: 2
+		High: 4
+Files skipped (0):

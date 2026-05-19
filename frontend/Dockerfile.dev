@@ -1,0 +1,12 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies before copying source (cache layer)
+COPY package*.json ./
+RUN npm ci
+
+EXPOSE 3000
+
+# Source code is bind-mounted at runtime via docker-compose volumes
+# CMD is overridden by docker-compose.yml: `npm run dev`

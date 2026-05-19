@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: enterprise_ai_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_test
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6380:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --dev
+
+      - name: Lint (ruff)
+        working-directory: backend
+        run: uv run ruff check .
+
+      - name: Type check (mypy)
+        working-directory: backend
+        run: uv run mypy app/
+
+      - name: Run migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres_test@localhost:5433/enterprise_ai_test
+        run: uv run alembic upgrade head
+
+      - name: Run tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres_test@localhost:5433/enterprise_ai_test
+          REDIS_URL: redis://localhost:6380/0
+          CELERY_BROKER_URL: redis://localhost:6380/1
+          CELERY_RESULT_BACKEND: redis://localhost:6380/2
+          JWT_SECRET_KEY: ci-test-secret-key-not-for-production
+          JWT_ALGORITHM: HS256
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY || 'sk-test-placeholder' }}
+          LLM_MODEL: gpt-4o-mini
+          LLM_STRONG_MODEL: gpt-4o
+          EMBED_MODEL: text-embedding-3-small
+          EMBED_DIM: "1536"
+        run: uv run pytest --tb=short -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Lint
+        working-directory: frontend
+        run: npx eslint . --max-warnings 0
