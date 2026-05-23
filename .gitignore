@@ -34,3 +34,32 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Logs
+*.log
+logs/
+
+# pytest
+.coverage
+htmlcov/
+
+# uv build artifacts
+backend/.venv/
+backend/uv.lock
+
+# OS thumbnails
+desktop.ini
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# Node
+frontend/.next/cache/
+frontend/.swc/
+*.tsbuildinfo
+
+# Docker volumes (additional)
+backend/postgres_data/
+backend/redis_data/
