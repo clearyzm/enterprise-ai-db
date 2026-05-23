@@ -82,7 +82,8 @@ function AppLayoutInner({ children }: { children: ReactNode }) {
   // Handle logout
   const handleLogout = () => {
     clearAuth();
-    router.push('/login');
+    queryClient.clear();
+    window.location.href = '/login';
   };
 
   return (
