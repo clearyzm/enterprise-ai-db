@@ -244,7 +244,7 @@ export default function LoginPage() {
                 className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
                   errors.tenant_slug ? 'border-red-300' : 'border-gray-300'
                 } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                placeholder="demo"
+                placeholder=""
                 disabled={isLoading}
               />
               {errors.tenant_slug && (
@@ -268,7 +268,7 @@ export default function LoginPage() {
                 className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
                   errors.email ? 'border-red-300' : 'border-gray-300'
                 } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                placeholder="admin@demo.com"
+                placeholder=""
                 disabled={isLoading}
               />
               {errors.email && (
@@ -292,7 +292,7 @@ export default function LoginPage() {
                 className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
                   errors.password ? 'border-red-300' : 'border-gray-300'
                 } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                placeholder="••••••••••"
+                placeholder=""
                 disabled={isLoading}
               />
               {errors.password && (

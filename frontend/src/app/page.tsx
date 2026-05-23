@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore, selectIsAuthenticated } from '@/lib/store/auth';
 
-export default function HomePage() {
+export default function RootPage() {
   const router = useRouter();
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const isHydrated = useAuthStore((state) => state.isHydrated);
@@ -19,7 +19,7 @@ export default function HomePage() {
   }, [isHydrated, isAuthenticated, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="flex h-screen items-center justify-center">
       <div className="text-gray-500">加载中...</div>
     </div>
   );
