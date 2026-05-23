@@ -56,17 +56,17 @@ dev-dependencies = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 env = [
-    "DATABASE_URL=postgresql+asyncpg://postgres:postgres_test@postgres-test:5432/enterprise_ai_test",
-    "REDIS_URL=redis://localhost:6380/0",
-    "CELERY_BROKER_URL=redis://localhost:6380/1",
-    "CELERY_RESULT_BACKEND=redis://localhost:6380/2",
-    "JWT_SECRET_KEY=test-secret-key-do-not-use-in-production",
-    "JWT_ALGORITHM=HS256",
-    "LLM_API_KEY=sk-test-placeholder",
-    "LLM_MODEL=gpt-4o-mini",
-    "LLM_STRONG_MODEL=gpt-4o",
-    "EMBED_MODEL=text-embedding-3-small",
-    "EMBED_DIM=1536",
+    "D:DATABASE_URL=postgresql+asyncpg://postgres:postgres_test@postgres-test:5432/enterprise_ai_test",
+    "D:REDIS_URL=redis://localhost:6380/0",
+    "D:CELERY_BROKER_URL=redis://localhost:6380/1",
+    "D:CELERY_RESULT_BACKEND=redis://localhost:6380/2",
+    "D:JWT_SECRET_KEY=test-secret-key-do-not-use-in-production",
+    "D:JWT_ALGORITHM=HS256",
+    "D:LLM_API_KEY=sk-test-placeholder",
+    "D:LLM_MODEL=gpt-4o-mini",
+    "D:LLM_STRONG_MODEL=gpt-4o",
+    "D:EMBED_MODEL=text-embedding-3-small",
+    "D:EMBED_DIM=1536",
 ]
 testpaths = ["tests"]
 

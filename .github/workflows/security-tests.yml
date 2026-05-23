@@ -64,6 +64,7 @@ jobs:
         working-directory: ./backend
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres_test@localhost:5432/enterprise_ai_test
+          PYTHONPATH: .
         run: uv run alembic upgrade head
 
       - name: Verify RLS test setup
@@ -91,6 +92,7 @@ jobs:
           EMBED_DIM: 1536
           APP_ENV: test
           APP_DEBUG: "false"
+          PYTHONPATH: .
         run: |
           uv run pytest tests/test_security_contracts.py -v --tb=short
 
