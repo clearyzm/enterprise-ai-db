@@ -142,20 +142,21 @@ export function useChat(conversationId: string) {
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
 
-        for (const line of lines) {
-          if (!line.trim() || line.startsWith(':')) continue;
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || '';
+
+        for (const rawEvent of parts) {
+          if (!rawEvent.trim()) continue;
 
           try {
-            const event = parseSSELine(line);
+            const event = parseSSEEvent(rawEvent);
             if (!event) continue;
 
             // Handle different event types
             if (event.event === 'token') {
               // Append token to content
-              const delta = event.data.delta as string;
+              const delta = event.data.token as string;
               currentMessage = {
                 ...currentMessage,
                 content: currentMessage.content + delta,
@@ -262,6 +263,50 @@ export function useChat(conversationId: string) {
 // ============================================================================
 // Utility Functions
 // ============================================================================
+
+/**
+ * Parse a single SSE event (multi-line block) into SSEEvent object.
+ * Standard SSE format:
+ *   event: <type>
+ *   data: <json>
+ *
+ * Supports backward compatibility with the legacy single-line "data: {event, data}" format.
+ */
+function parseSSEEvent(rawEvent: string): SSEEvent | null {
+  const lines = rawEvent.split('\n');
+  let eventType = 'message';
+  let dataStr = '';
+
+  for (const line of lines) {
+    if (line.startsWith(':')) continue;
+    if (line.startsWith('event: ')) {
+      eventType = line.slice(7).trim();
+    } else if (line.startsWith('data: ')) {
+      dataStr = dataStr ? dataStr + '\n' + line.slice(6) : line.slice(6);
+    }
+  }
+
+  if (!dataStr) return null;
+
+  try {
+    const data = JSON.parse(dataStr);
+
+    if (typeof data === 'object' && data !== null && 'event' in data && 'data' in data) {
+      return {
+        event: data.event as string,
+        data: data.data as Record<string, unknown>,
+      };
+    }
+
+    return {
+      event: eventType,
+      data: data as Record<string, unknown>,
+    };
+  } catch (err) {
+    console.error('[parseSSEEvent] Failed to parse JSON:', dataStr, err);
+    return null;
+  }
+}
 
 /**
  * Parse SSE line into event object

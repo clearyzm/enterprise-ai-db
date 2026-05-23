@@ -36,17 +36,44 @@ def upgrade() -> None:
         ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
     """)
     
-    # Fix user_roles table - add id, created_at, updated_at
-    # First check if id column exists, if not add it
+    # Fix user_roles table — convert composite PK (user_id, role_id, scope)
+    # to single id UUID PK + UniqueConstraint, matching the ORM model.
+    #
+    # This block is idempotent: safe to run on both clean DBs (0001's composite PK
+    # present, no id column yet) and DBs that already have id PK (re-run scenario).
     op.execute("""
-        DO $$ 
+        DO $$
         BEGIN
+            -- Only run conversion if id column doesn't exist yet
             IF NOT EXISTS (
-                SELECT 1 FROM information_schema.columns 
+                SELECT 1 FROM information_schema.columns
                 WHERE table_name = 'user_roles' AND column_name = 'id'
             ) THEN
-                ALTER TABLE user_roles 
+                -- Drop the existing composite primary key from 0001, if it exists
+                -- (PostgreSQL auto-names PK constraints as <table>_pkey)
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE table_name = 'user_roles'
+                      AND constraint_type = 'PRIMARY KEY'
+                ) THEN
+                    ALTER TABLE user_roles DROP CONSTRAINT user_roles_pkey;
+                END IF;
+
+                -- Add id UUID column as new primary key
+                ALTER TABLE user_roles
                 ADD COLUMN id UUID PRIMARY KEY DEFAULT gen_random_uuid();
+            END IF;
+
+            -- Add uniqueness constraint on (user_id, role_id, scope) if missing
+            -- This preserves the semantic uniqueness from the original composite PK.
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.table_constraints
+                WHERE table_name = 'user_roles'
+                  AND constraint_name = 'uq_user_roles_user_role_scope'
+            ) THEN
+                ALTER TABLE user_roles
+                ADD CONSTRAINT uq_user_roles_user_role_scope
+                UNIQUE (user_id, role_id, scope);
             END IF;
         END $$;
     """)

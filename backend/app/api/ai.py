@@ -9,6 +9,7 @@ Provides:
 - DELETE /ai/conversations/{id} (delete)
 - GET /ai/conversations/{id}/messages (list messages)
 """
+import json
 from typing import AsyncGenerator
 from uuid import UUID
 
@@ -84,7 +85,7 @@ async def chat_stream(
             
             # Send tokens (split by character for now, can improve to word-level)
             for char in answer:
-                yield f"event: token\ndata: {{'token': '{char}'}}\n\n"
+                yield f"event: token\ndata: {json.dumps({'token': char}, ensure_ascii=False)}\n\n"
             
             # Send citations
             for citation in assistant_msg.citations:
@@ -93,12 +94,12 @@ async def chat_stream(
                     "dataset_id": citation.get("dataset_id"),
                     "text": citation.get("text", ""),
                 }
-                yield f"event: citation\ndata: {citation_data}\n\n"
+                yield f"event: citation\ndata: {json.dumps(citation_data, ensure_ascii=False)}\n\n"
             
             # Check guardrail
             guardrail = assistant_msg.guardrail or {}
             if guardrail.get("action") == "block":
-                yield f"event: denied\ndata: {{'reason': 'Content blocked by guardrail'}}\n\n"
+                yield f"event: denied\ndata: {json.dumps({'reason': 'Content blocked by guardrail'}, ensure_ascii=False)}\n\n"
             else:
                 # Send done event
                 done_data = {
@@ -107,7 +108,7 @@ async def chat_stream(
                     "tokens_in": assistant_msg.tokens_in,
                     "tokens_out": assistant_msg.tokens_out,
                 }
-                yield f"event: done\ndata: {done_data}\n\n"
+                yield f"event: done\ndata: {json.dumps(done_data, ensure_ascii=False)}\n\n"
             
             logger.info(
                 "api.chat.stream.complete",

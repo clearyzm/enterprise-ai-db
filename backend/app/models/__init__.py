@@ -19,6 +19,7 @@ from app.models.workflow import (
     ApprovalActionType,
     AUTO_APPROVE_WORKFLOW_ID,
 )
+from app.models.audit_log import AuditLog
 
 __all__ = [
     # Base
@@ -57,4 +58,6 @@ __all__ = [
     "ApprovalAction",
     "ApprovalActionType",
     "AUTO_APPROVE_WORKFLOW_ID",
+    # Audit Log
+    "AuditLog",
 ]

@@ -144,6 +144,28 @@ async def list_roles(
     return RoleListResponse(roles=role_responses, total=total)
 
 
+@router.get("/{role_id}", response_model=RoleResponse, dependencies=[Depends(require_perm("read", "role"))])
+async def get_role(
+    role_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user: CurrentUser,
+) -> RoleResponse:
+    """Get a single role by ID, including its permissions list."""
+    target_role_id = UUID(role_id)
+    
+    # Load role (permissions are loaded via lazy="selectin" relationship)
+    stmt = select(Role).where(
+        Role.id == target_role_id,
+        Role.tenant_id == user.tenant_id,
+    )
+    result = await db.execute(stmt)
+    target_role = result.scalar_one_or_none()
+    if not target_role:
+        raise NotFoundError("Role")
+    
+    return _build_role_response(target_role)
+
+
 @router.post("", response_model=RoleResponse, dependencies=[Depends(require_perm("write", "role"))])
 async def create_role(
     request: CreateRoleRequest,
@@ -206,12 +228,10 @@ async def update_role(
     if not target_role:
         raise NotFoundError("Role")
     
-    # Prevent modification of system roles
-    if target_role.is_system:
-        raise ValidationError("System roles cannot be modified")
-    
     # Update fields
     if request.name is not None:
+        if target_role.is_system:
+            raise ValidationError("System role name cannot be modified")
         # Check name uniqueness
         stmt = select(Role).where(
             Role.tenant_id == user.tenant_id,
@@ -229,6 +249,8 @@ async def update_role(
     
     # Update permissions if provided
     if request.permission_ids is not None:
+        if target_role.is_system:
+            raise ValidationError("System role permissions cannot be modified")
         # Remove existing permissions
         await db.execute(
             delete(RolePermission).where(RolePermission.role_id == target_role_id)

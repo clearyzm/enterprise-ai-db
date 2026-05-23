@@ -12,7 +12,7 @@
 
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { use, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -54,19 +54,20 @@ interface MessagesResponse {
 // Component
 // ============================================================================
 
-export default function AIChatPage({ params }: { params: { convId: string } }) {
+export default function AIChatPage({ params }: { params: Promise<{ convId: string }> }) {
+  const { convId } = use(params);
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Fetch message history
   const { data: historyData, isLoading: historyLoading } = useQuery<MessagesResponse>({
-    queryKey: ['ai', 'messages', params.convId],
-    queryFn: () => api.get<MessagesResponse>(`/ai/conversations/${params.convId}/messages`),
+    queryKey: ['ai', 'messages', convId],
+    queryFn: () => api.get<MessagesResponse>(`/ai/conversations/${convId}/messages`),
   });
 
   // Use chat hook
-  const { messages, send, isStreaming, error } = useChat(params.convId);
+  const { messages, send, isStreaming, error } = useChat(convId);
 
   // Combine history and new messages
   const allMessages = [

@@ -16,6 +16,7 @@ from app.schemas.workflow import (
     ApprovalActionResponse,
 )
 from app.services.workflow_engine import WorkflowEngine
+from app.services.audit_service import log_event
 from app.utils.errors import NotFoundError
 
 router = APIRouter(prefix="/approvals", tags=["Approvals"])
@@ -283,6 +284,24 @@ async def approve_version(
     await db.commit()
     await db.refresh(version)
 
+    # Audit log: approval granted
+    await log_event(
+        db,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        action="approve",
+        resource_type="record",
+        resource_id=str(version.record_id) if version.record_id else None,
+        detail={
+            "version_id": str(version.id),
+            "dataset_id": str(version.dataset_id),
+            "op": version.op.value,
+            "new_state": version.state.value,
+            "comment": request.comment,
+        },
+    )
+    await db.commit()
+
     # Return updated detail
     return await get_approval_detail(version_id, db, user)
 
@@ -299,6 +318,24 @@ async def reject_version(
     version = await engine.reject(UUID(version_id), user, request.comment)
     await db.commit()
     await db.refresh(version)
+
+    # Audit log: approval rejected
+    await log_event(
+        db,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        action="reject",
+        resource_type="record",
+        resource_id=str(version.record_id) if version.record_id else None,
+        detail={
+            "version_id": str(version.id),
+            "dataset_id": str(version.dataset_id),
+            "op": version.op.value,
+            "new_state": version.state.value,
+            "comment": request.comment,
+        },
+    )
+    await db.commit()
 
     # Return updated detail
     return await get_approval_detail(version_id, db, user)

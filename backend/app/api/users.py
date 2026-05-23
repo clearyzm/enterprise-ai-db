@@ -16,7 +16,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, or_
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +28,7 @@ from app.models.department import UserDepartment
 from app.utils.errors import ConflictError, NotFoundError, PermissionDeniedError
 from app.utils.hashing import hash_password
 from app.services.permission_service import PermissionService
+from app.services.audit_service import log_event
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -104,11 +105,19 @@ def _build_user_response(user: User) -> UserResponse:
         created_at=user.created_at.isoformat(),
         updated_at=user.updated_at.isoformat(),
         departments=[
-            {"id": str(ud.department_id), "name": ud.department.name, "is_primary": ud.is_primary}
+            {
+                "department_id": str(ud.department_id),
+                "department_name": ud.department.name,
+                "is_primary": ud.is_primary,
+            }
             for ud in user.user_departments
         ],
         roles=[
-            {"id": str(ur.role_id), "name": ur.role.name, "scope": ur.scope}
+            {
+                "role_id": str(ur.role_id),
+                "role_name": ur.role.name,
+                "scope": ur.scope,
+            }
             for ur in user.user_roles
         ],
     )
@@ -124,6 +133,8 @@ async def list_users(
     db: Annotated[AsyncSession, Depends(get_db)],
     user: CurrentUser,
     department_id: Annotated[str | None, Query()] = None,
+    status: Annotated[str | None, Query(description="Filter by user status (active/disabled)")] = None,
+    search: Annotated[str | None, Query(description="Search by email or display_name")] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> UserListResponse:
@@ -139,12 +150,26 @@ async def list_users(
             UserDepartment.department_id == dept_uuid
         )
     
+    # Filter by status if specified
+    if status:
+        stmt = stmt.where(User.status == status)
+    
+    # Filter by search (email or display_name) if specified
+    if search:
+        search_pattern = f"%{search}%"
+        stmt = stmt.where(or_(User.email.ilike(search_pattern), User.display_name.ilike(search_pattern)))
+    
     # Count total (before pagination)
     count_stmt = select(func.count()).select_from(User).where(User.tenant_id == user.tenant_id)
     if department_id:
         count_stmt = count_stmt.join(User.user_departments).where(
             UserDepartment.department_id == UUID(department_id)
         )
+    if status:
+        count_stmt = count_stmt.where(User.status == status)
+    if search:
+        search_pattern = f"%{search}%"
+        count_stmt = count_stmt.where(or_(User.email.ilike(search_pattern), User.display_name.ilike(search_pattern)))
     total_result = await db.execute(count_stmt)
     total = total_result.scalar_one()
     
@@ -284,6 +309,25 @@ async def update_user(
     await db.commit()
     await db.refresh(target_user)
     
+    # Audit log: user updated
+    await log_event(
+        db,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        action="update_user",
+        resource_type="user",
+        resource_id=str(target_user_id),
+        detail={
+            "target_user_email": target_user.email,
+            "changes": {
+                "display_name": request.display_name if request.display_name is not None else None,
+                "status": request.status.value if request.status is not None else None,
+                "department_ids": request.department_ids if request.department_ids is not None else None,
+            },
+        },
+    )
+    await db.commit()
+    
     return _build_user_response(target_user)
 
 
@@ -309,6 +353,21 @@ async def delete_user(
     
     # Soft delete
     target_user.status = UserStatus.disabled
+    
+    # Audit log: user disabled (soft delete)
+    await log_event(
+        db,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        action="disable_user",
+        resource_type="user",
+        resource_id=str(target_user_id),
+        detail={
+            "target_user_email": target_user.email,
+            "target_user_name": target_user.display_name,
+        },
+    )
+    
     await db.commit()
 
 

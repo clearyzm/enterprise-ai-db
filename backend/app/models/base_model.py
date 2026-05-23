@@ -97,7 +97,7 @@ class SoftDeleteMixin:
     """
 
     status: Mapped[StatusEnum] = mapped_column(
-        Enum(StatusEnum, name="status_enum", create_type=False),
+        Enum(StatusEnum, name="status_enum", create_type=False, native_enum=False),
         nullable=False,
         server_default="active",
         index=True,

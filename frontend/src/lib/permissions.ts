@@ -67,7 +67,7 @@ export function can(user: User | null, permission: Permission): boolean {
   const [action, resource] = permission.split(':') as [Action, Resource];
 
   // Check role-based permissions
-  return user.roles.some((role) => hasRolePermission(role.role_name, action, resource));
+  return (user.roles || []).some((role) => hasRolePermission(role.role_name, action, resource));
 }
 
 /**

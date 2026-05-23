@@ -72,7 +72,7 @@ class Tenant(Base, TimestampMixin):
     )
 
     status: Mapped[TenantStatus] = mapped_column(
-        Enum(TenantStatus, name="tenant_status_enum", create_type=False),
+        Enum(TenantStatus, name="tenant_status_enum", create_type=False, native_enum=False),
         nullable=False,
         server_default="active",
         index=True,

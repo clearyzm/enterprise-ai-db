@@ -324,12 +324,21 @@ def build_agent_graph(user: User, tenant_id: UUID, db: AsyncSession, tools: list
     
     graph = StateGraph(AgentState)
     
+    async def _permission_gate(s):
+        return await permission_gate_node(s, db)
+    
+    async def _retrieve(s):
+        return await retrieve_node(s, db, user)
+    
+    async def _execute_tools(s):
+        return await execute_tools_node(s, tools)
+    
     graph.add_node("input_filter", input_filter_node)
     graph.add_node("classify", lambda s: classify_node(s, llm_cheap))
-    graph.add_node("permission_gate", lambda s: permission_gate_node(s, db))
-    graph.add_node("retrieve", lambda s: retrieve_node(s, db, user))
+    graph.add_node("permission_gate", _permission_gate)
+    graph.add_node("retrieve", _retrieve)
     graph.add_node("plan", lambda s: plan_node(s, llm_cheap, tools))
-    graph.add_node("execute_tools", lambda s: execute_tools_node(s, tools))
+    graph.add_node("execute_tools", _execute_tools)
     graph.add_node("synthesize", lambda s: synthesize_node(s, llm_strong))
     graph.add_node("guardrail", guardrail_node)
     graph.add_node("respond_deny", respond_deny_node)

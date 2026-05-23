@@ -179,7 +179,7 @@ class DataSet(Base, TenantMixin, TimestampMixin):
     )
 
     sensitivity: Mapped[DataSetSensitivity] = mapped_column(
-        sa.Enum(DataSetSensitivity, name="dataset_sensitivity_enum", create_type=False),
+        sa.Enum(DataSetSensitivity, name="dataset_sensitivity_enum", create_type=False, native_enum=False),
         nullable=False,
         server_default="internal",
         index=True,
@@ -187,7 +187,7 @@ class DataSet(Base, TenantMixin, TimestampMixin):
     )
 
     status: Mapped[DataSetStatus] = mapped_column(
-        sa.Enum(DataSetStatus, name="dataset_status_enum", create_type=False),
+        sa.Enum(DataSetStatus, name="dataset_status_enum", create_type=False, native_enum=False),
         nullable=False,
         server_default="active",
         index=True,

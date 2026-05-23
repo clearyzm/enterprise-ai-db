@@ -82,7 +82,7 @@ class DataSetService:
         """Get dataset by ID."""
         stmt = select(DataSet).where(DataSet.id == dataset_id)
         if for_update:
-            stmt = stmt.with_for_update()
+            stmt = stmt.with_for_update(of=DataSet)
         result = await self.db.execute(stmt)
         dataset = result.scalar_one_or_none()
         if not dataset:

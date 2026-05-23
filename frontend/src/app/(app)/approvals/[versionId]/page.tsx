@@ -1,26 +1,15 @@
 /**
  * Approval detail page with before/after diff and approve/reject actions.
- * 
- * Features:
- * - Display version metadata (dataset, operation, proposer, workflow)
- * - Show before/after payload diff with field-level highlighting
- * - Approve/Reject buttons (only if user is eligible approver)
- * - Cancel button (only if user is the proposer and state is pending)
- * - Display approval history (who approved/rejected at each step)
  */
 
 'use client';
 
-import { useState } from 'react';
+import { useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store/auth';
 import DiffViewer from '@/components/diff-viewer';
-
-// ============================================================================
-// Types
-// ============================================================================
 
 interface WorkflowStep {
   name: string;
@@ -68,50 +57,43 @@ interface ApprovalDetail {
   actions: ApprovalAction[];
 }
 
-// ============================================================================
-// Component
-// ============================================================================
-
-export default function ApprovalDetailPage({ params }: { params: { versionId: string } }) {
+export default function ApprovalDetailPage({ params }: { params: Promise<{ versionId: string }> }) {
+  const { versionId } = use(params);
   const router = useRouter();
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const [comment, setComment] = useState('');
   const [showCommentInput, setShowCommentInput] = useState(false);
 
-  // Fetch approval detail
   const { data, isLoading, error } = useQuery<ApprovalDetail>({
-    queryKey: ['approval', params.versionId],
-    queryFn: () => api.get<ApprovalDetail>(`/approvals/${params.versionId}`),
+    queryKey: ['approval', versionId],
+    queryFn: () => api.get<ApprovalDetail>(`/approvals/${versionId}`),
   });
 
-  // Approve mutation
   const approveMutation = useMutation({
-    mutationFn: () => api.post(`/approvals/${params.versionId}/approve`, { comment: comment || null }),
+    mutationFn: () => api.post(`/approvals/${versionId}/approve`, { comment: comment || null }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['approval', params.versionId] });
+      queryClient.invalidateQueries({ queryKey: ['approval', versionId] });
       queryClient.invalidateQueries({ queryKey: ['approvals'] });
       setComment('');
       setShowCommentInput(false);
     },
   });
 
-  // Reject mutation
   const rejectMutation = useMutation({
-    mutationFn: () => api.post(`/approvals/${params.versionId}/reject`, { comment: comment || null }),
+    mutationFn: () => api.post(`/approvals/${versionId}/reject`, { comment: comment || null }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['approval', params.versionId] });
+      queryClient.invalidateQueries({ queryKey: ['approval', versionId] });
       queryClient.invalidateQueries({ queryKey: ['approvals'] });
       setComment('');
       setShowCommentInput(false);
     },
   });
 
-  // Cancel mutation
   const cancelMutation = useMutation({
-    mutationFn: () => api.post(`/approvals/${params.versionId}/cancel`),
+    mutationFn: () => api.post(`/approvals/${versionId}/cancel`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['approval', params.versionId] });
+      queryClient.invalidateQueries({ queryKey: ['approval', versionId] });
       queryClient.invalidateQueries({ queryKey: ['approvals'] });
     },
   });
@@ -167,15 +149,11 @@ export default function ApprovalDetailPage({ params }: { params: { versionId: st
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.back()}
-                className="text-gray-400 hover:text-gray-600"
-              >
+              <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
@@ -190,13 +168,10 @@ export default function ApprovalDetailPage({ params }: { params: { versionId: st
         </div>
       </div>
 
-      {/* Content */}
       <div className="px-8 py-6 max-w-7xl mx-auto">
         <div className="space-y-6">
-          {/* Metadata Card */}
           <MetadataCard data={data} />
 
-          {/* Workflow Progress */}
           {data.workflow_steps.length > 0 && (
             <div className="bg-white shadow rounded-lg p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">审批进度</h2>
@@ -209,7 +184,6 @@ export default function ApprovalDetailPage({ params }: { params: { versionId: st
             </div>
           )}
 
-          {/* Diff Viewer */}
           <div className="bg-white shadow rounded-lg p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">变更内容</h2>
             <DiffViewer
@@ -219,7 +193,6 @@ export default function ApprovalDetailPage({ params }: { params: { versionId: st
             />
           </div>
 
-          {/* Action Buttons */}
           {(canApprove || canCancel) && (
             <ActionButtons
               canApprove={canApprove}
@@ -243,10 +216,6 @@ export default function ApprovalDetailPage({ params }: { params: { versionId: st
   );
 }
 
-// ============================================================================
-// Helper Components
-// ============================================================================
-
 function MetadataCard({ data }: { data: ApprovalDetail }) {
   return (
     <div className="bg-white shadow rounded-lg p-6">
@@ -254,9 +223,7 @@ function MetadataCard({ data }: { data: ApprovalDetail }) {
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <dt className="text-sm font-medium text-gray-500">操作类型</dt>
-          <dd className="mt-1">
-            <OperationBadge op={data.op} />
-          </dd>
+          <dd className="mt-1"><OperationBadge op={data.op} /></dd>
         </div>
         <div>
           <dt className="text-sm font-medium text-gray-500">提交人</dt>
@@ -302,19 +269,10 @@ function MetadataCard({ data }: { data: ApprovalDetail }) {
 }
 
 function ActionButtons({
-  canApprove,
-  canCancel,
-  isProcessing,
-  comment,
-  setComment,
-  showCommentInput,
-  setShowCommentInput,
-  handleApprove,
-  handleReject,
-  handleCancel,
-  approveMutation,
-  rejectMutation,
-  cancelMutation,
+  canApprove, canCancel, isProcessing, comment, setComment,
+  showCommentInput, setShowCommentInput,
+  handleApprove, handleReject, handleCancel,
+  approveMutation, rejectMutation, cancelMutation,
 }: {
   canApprove: boolean;
   canCancel: boolean;
@@ -333,7 +291,6 @@ function ActionButtons({
   return (
     <div className="bg-white shadow rounded-lg p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-4">操作</h2>
-      
       {showCommentInput && (
         <div className="mb-4">
           <label htmlFor="comment" className="block text-sm font-medium text-gray-700 mb-2">
@@ -349,37 +306,24 @@ function ActionButtons({
           />
         </div>
       )}
-
       <div className="flex items-center space-x-4">
         {canApprove && (
           <>
             <button
-              onClick={() => {
-                setShowCommentInput(true);
-                handleApprove();
-              }}
+              onClick={() => { setShowCommentInput(true); handleApprove(); }}
               disabled={isProcessing}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
             >
-              <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
               批准
             </button>
             <button
               onClick={() => {
-                if (!showCommentInput) {
-                  setShowCommentInput(true);
-                } else {
-                  handleReject();
-                }
+                if (!showCommentInput) { setShowCommentInput(true); }
+                else { handleReject(); }
               }}
               disabled={isProcessing}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
             >
-              <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
               拒绝
             </button>
           </>
@@ -388,30 +332,23 @@ function ActionButtons({
           <button
             onClick={handleCancel}
             disabled={isProcessing}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
           >
             取消提交
           </button>
         )}
         {!showCommentInput && canApprove && (
-          <button
-            onClick={() => setShowCommentInput(true)}
-            className="text-sm text-blue-600 hover:text-blue-700"
-          >
+          <button onClick={() => setShowCommentInput(true)} className="text-sm text-blue-600 hover:text-blue-700">
             添加备注
           </button>
         )}
       </div>
-
       {(approveMutation.error || rejectMutation.error || cancelMutation.error) && (
         <div className="mt-4 rounded-md bg-red-50 p-4">
           <p className="text-sm text-red-800">
-            {approveMutation.error instanceof Error
-              ? approveMutation.error.message
-              : rejectMutation.error instanceof Error
-              ? rejectMutation.error.message
-              : cancelMutation.error instanceof Error
-              ? cancelMutation.error.message
+            {approveMutation.error instanceof Error ? approveMutation.error.message
+              : rejectMutation.error instanceof Error ? rejectMutation.error.message
+              : cancelMutation.error instanceof Error ? cancelMutation.error.message
               : '操作失败'}
           </p>
         </div>
@@ -429,14 +366,8 @@ function StateBadge({ state }: { state: ApprovalDetail['state'] }) {
     superseded: { label: '已过期', color: 'bg-gray-100 text-gray-800' },
     cancelled: { label: '已取消', color: 'bg-gray-100 text-gray-800' },
   };
-
   const { label, color } = config[state];
-
-  return (
-    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${color}`}>
-      {label}
-    </span>
-  );
+  return <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${color}`}>{label}</span>;
 }
 
 function OperationBadge({ op }: { op: 'insert' | 'update' | 'delete' }) {
@@ -445,21 +376,12 @@ function OperationBadge({ op }: { op: 'insert' | 'update' | 'delete' }) {
     update: { label: '修改', color: 'bg-blue-100 text-blue-800' },
     delete: { label: '删除', color: 'bg-red-100 text-red-800' },
   };
-
   const { label, color } = config[op];
-
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${color}`}>
-      {label}
-    </span>
-  );
+  return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${color}`}>{label}</span>;
 }
 
 function WorkflowProgress({
-  steps,
-  currentStep,
-  actions,
-  state,
+  steps, currentStep, actions, state,
 }: {
   steps: WorkflowStep[];
   currentStep: number;
@@ -492,7 +414,6 @@ function WorkflowProgress({
                 </div>
               )}
             </div>
-
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2">
                 <h3 className="text-sm font-medium text-gray-900">{step.name}</h3>
@@ -502,7 +423,6 @@ function WorkflowProgress({
                   </span>
                 )}
               </div>
-              
               {stepActions.length > 0 && (
                 <div className="mt-2 space-y-2">
                   {stepActions.map((action) => (
@@ -513,9 +433,7 @@ function WorkflowProgress({
                       <span className="text-gray-500 ml-2">
                         {action.approver_name || action.approver_email}
                       </span>
-                      {action.comment && (
-                        <p className="text-gray-600 mt-1">{action.comment}</p>
-                      )}
+                      {action.comment && <p className="text-gray-600 mt-1">{action.comment}</p>}
                       <p className="text-gray-400 text-xs mt-1">
                         {new Date(action.created_at).toLocaleString('zh-CN')}
                       </p>

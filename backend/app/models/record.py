@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from app.models.dataset import DataSet
     from app.models.department import Department
     from app.models.user import User
+    from app.models.workflow import Workflow
 
 
 class RecordStatus(str, enum.Enum):
@@ -302,6 +303,12 @@ class RecordVersion(Base, TenantMixin):
     dataset: Mapped["DataSet"] = relationship("DataSet", lazy="selectin")
     proposer: Mapped["User"] = relationship(
         "User", foreign_keys=[proposed_by], lazy="selectin"
+    )
+    workflow: Mapped["Workflow | None"] = relationship(
+        "Workflow",
+        primaryjoin="foreign(RecordVersion.workflow_id) == Workflow.id",
+        lazy="selectin",
+        viewonly=True,
     )
 
     __table_args__ = (

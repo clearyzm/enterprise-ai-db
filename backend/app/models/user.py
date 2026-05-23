@@ -79,7 +79,7 @@ class User(Base, TenantMixin, TimestampMixin):
     )
 
     status: Mapped[UserStatus] = mapped_column(
-        sa.Enum(UserStatus, name="user_status_enum", create_type=False),
+        sa.Enum(UserStatus, name="user_status_enum", create_type=False, native_enum=False),
         nullable=False,
         server_default="active",
         index=True,

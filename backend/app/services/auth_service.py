@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.models.user import User
 from app.models.tenant import Tenant
+from app.services.audit_service import log_event
 from app.utils.errors import AuthenticationError, InvalidCredentialsError, NotFoundError, ValidationError
 from app.utils.hashing import hash_password, needs_rehash, verify_password
 from app.utils.jwt import (
@@ -109,6 +110,21 @@ class AuthService:
         await self.db.commit()
         await self.db.refresh(user)
         
+        # Audit log: login success
+        await log_event(
+            self.db,
+            tenant_id=tenant.id,
+            user_id=user.id,
+            action="login",
+            resource_type="user",
+            resource_id=str(user.id),
+            detail={
+                "email": email,
+                "tenant_slug": tenant_slug,
+            },
+        )
+        await self.db.commit()
+        
         # Collect department IDs
         department_ids = [ud.department_id for ud in user.user_departments]
         
@@ -140,19 +156,16 @@ class AuthService:
             email=email,
         )
         
+        # Reuse get_current_user_info() to keep /auth/login and /auth/me identical in shape.
+        # Avoids schema drift between two endpoints that return the same logical entity.
+        user_info = await self.get_current_user_info(user.id)
+
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
             "expires_in": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            "user": {
-                "id": str(user.id),
-                "email": user.email,
-                "display_name": user.display_name,
-                "is_tenant_admin": user.is_tenant_admin,
-                "tenant_id": str(tenant.id),
-                "tenant_slug": tenant.slug,
-            },
+            "user": user_info,
         }
 
     async def change_password(

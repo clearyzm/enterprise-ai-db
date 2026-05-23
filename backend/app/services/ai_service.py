@@ -298,10 +298,12 @@ class AIService:
             )
             
         except Exception as e:
+            import traceback
             logger.error(
                 "ai_service.chat.agent_error",
                 conversation_id=str(conversation.id),
                 error=str(e),
+                traceback=traceback.format_exc(),
             )
             
             # Return error message

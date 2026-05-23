@@ -24,7 +24,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -71,20 +71,21 @@ interface SubmitRecordResponse {
 // Component
 // ============================================================================
 
-export default function EditRecordPage({ params }: { params: { id: string; recordId: string } }) {
+export default function EditRecordPage({ params }: { params: Promise<{ id: string; recordId: string }> }) {
+  const { id, recordId } = use(params);
   const router = useRouter();
   const [reason, setReason] = useState('');
 
   // Fetch dataset
   const { data: dataset, isLoading: loadingDS, error: errorDS } = useQuery<Dataset>({
-    queryKey: ['dataset', params.id],
-    queryFn: () => api.get<Dataset>(`/datasets/${params.id}`),
+    queryKey: ['dataset', id],
+    queryFn: () => api.get<Dataset>(`/datasets/${id}`),
   });
 
   // Fetch record
   const { data: record, isLoading: loadingRec, error: errorRec } = useQuery<Record>({
-    queryKey: ['record', params.id, params.recordId],
-    queryFn: () => api.get<Record>(`/datasets/${params.id}/records/${params.recordId}`),
+    queryKey: ['record', id, recordId],
+    queryFn: () => api.get<Record>(`/datasets/${id}/records/${recordId}`),
     enabled: !!dataset,
   });
 
@@ -105,7 +106,7 @@ export default function EditRecordPage({ params }: { params: { id: string; recor
   const updateMutation = useMutation({
     mutationFn: async (data: UpdateRecordRequest) => {
       return api.patch<SubmitRecordResponse>(
-        `/datasets/${params.id}/records/${params.recordId}`,
+        `/datasets/${id}/records/${recordId}`,
         data
       );
     },
@@ -154,7 +155,7 @@ export default function EditRecordPage({ params }: { params: { id: string; recor
             {errorDS instanceof Error ? errorDS.message : errorRec instanceof Error ? errorRec.message : '记录不存在或无权访问'}
           </p>
           <button
-            onClick={() => router.push(`/datasets/${params.id}`)}
+            onClick={() => router.push(`/datasets/${id}`)}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             返回数据集
@@ -175,11 +176,11 @@ export default function EditRecordPage({ params }: { params: { id: string; recor
               数据集
             </Link>
             <span className="mx-2 text-gray-400">/</span>
-            <Link href={`/datasets/${params.id}`} className="text-gray-500 hover:text-gray-700">
+            <Link href={`/datasets/${id}`} className="text-gray-500 hover:text-gray-700">
               {dataset.name}
             </Link>
             <span className="mx-2 text-gray-400">/</span>
-            <Link href={`/datasets/${params.id}/${params.recordId}`} className="text-gray-500 hover:text-gray-700">
+            <Link href={`/datasets/${id}/${recordId}`} className="text-gray-500 hover:text-gray-700">
               记录详情
             </Link>
             <span className="mx-2 text-gray-400">/</span>
@@ -259,7 +260,7 @@ export default function EditRecordPage({ params }: { params: { id: string; recor
             <div className="flex items-center justify-end space-x-4">
               <button
                 type="button"
-                onClick={() => router.push(`/datasets/${params.id}/${params.recordId}`)}
+                onClick={() => router.push(`/datasets/${id}/${recordId}`)}
                 disabled={updateMutation.isPending}
                 className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >

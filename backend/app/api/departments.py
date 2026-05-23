@@ -75,7 +75,13 @@ class DepartmentListResponse(BaseModel):
 
 
 def _build_department_response(dept: Department) -> DepartmentResponse:
-    """Build DepartmentResponse from Department model."""
+    """Build DepartmentResponse from Department model.
+    
+    Note: parent/children/user_count are intentionally returned as None/empty
+    to avoid triggering lazy loading on the Department self-referential
+    relationships, which causes asyncpg "Was IO attempted in an unexpected
+    place" errors. If detailed hierarchy is needed, query separately.
+    """
     return DepartmentResponse(
         id=str(dept.id),
         name=dept.name,
@@ -84,15 +90,9 @@ def _build_department_response(dept: Department) -> DepartmentResponse:
         tenant_id=str(dept.tenant_id),
         created_at=dept.created_at.isoformat(),
         updated_at=dept.updated_at.isoformat(),
-        parent={
-            "id": str(dept.parent.id),
-            "name": dept.parent.name,
-        } if dept.parent else None,
-        children=[
-            {"id": str(c.id), "name": c.name}
-            for c in dept.children
-        ],
-        user_count=len(dept.user_departments),
+        parent=None,
+        children=[],
+        user_count=0,
     )
 
 

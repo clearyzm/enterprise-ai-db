@@ -131,7 +131,7 @@ class Workflow(Base, TenantMixin, TimestampMixin):
     )
 
     status: Mapped[WorkflowStatus] = mapped_column(
-        sa.Enum(WorkflowStatus, name="workflow_status_enum", create_type=False),
+        sa.Enum(WorkflowStatus, name="workflow_status_enum", create_type=False, native_enum=False),
         nullable=False,
         server_default="active",
         index=True,
@@ -212,7 +212,7 @@ class ApprovalAction(Base, TenantMixin):
     )
 
     action: Mapped[ApprovalActionType] = mapped_column(
-        sa.Enum(ApprovalActionType, name="approval_action_type_enum", create_type=False),
+        sa.Enum(ApprovalActionType, name="approval_action_type_enum", create_type=False, native_enum=False),
         nullable=False,
         comment="Action type (approve/reject)",
     )

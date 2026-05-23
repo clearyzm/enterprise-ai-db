@@ -138,7 +138,6 @@ class WorkflowEngine:
         return version
 
     async def apply(self, version: RecordVersion, user: User) -> DataRecord | None:
-        await self.db.execute(sa.text("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"))
         try:
             if version.op == RecordVersionOp.insert:
                 record = await self._apply_insert(version, user)
@@ -205,7 +204,7 @@ class WorkflowEngine:
     async def _get_version(self, version_id: UUID, lock: bool = False) -> RecordVersion:
         stmt = select(RecordVersion).where(RecordVersion.id == version_id)
         if lock:
-            stmt = stmt.with_for_update()
+            stmt = stmt.with_for_update(of=RecordVersion)
         result = await self.db.execute(stmt)
         version = result.scalar_one_or_none()
         if not version:

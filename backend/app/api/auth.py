@@ -9,7 +9,7 @@ Routes:
 """
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,7 +40,7 @@ class LoginResponse(BaseModel):
     refresh_token: str = Field(..., description="Opaque refresh token")
     token_type: str = Field(default="bearer", description="Token type")
     expires_in: int = Field(..., description="Access token expiration in seconds")
-    user: dict = Field(..., description="User information")
+    user: "UserInfoResponse" = Field(..., description="User information")
 
 
 class ChangePasswordRequest(BaseModel):
@@ -212,7 +212,7 @@ async def change_password(
 # ============================================================================
 
 
-@router.post("/refresh")
+@router.post("/refresh", status_code=501)
 async def refresh_token() -> dict:
     """Refresh access token using refresh token.
     
@@ -224,14 +224,12 @@ async def refresh_token() -> dict:
     - Return new tokens
     
     **Not implemented in Phase 2** (refresh tokens are stateless).
+    Returns 501 so client `api.ts` can correctly detect failure and redirect to /login.
     """
-    return {
-        "error": "not_implemented",
-        "message": "Token refresh will be implemented in Phase 3+",
-    }
+    raise HTTPException(status_code=501, detail="Token refresh not implemented in Phase 2")
 
 
-@router.post("/logout")
+@router.post("/logout", status_code=501)
 async def logout() -> dict:
     """Logout and revoke tokens.
     
@@ -241,8 +239,9 @@ async def logout() -> dict:
     - Clear client-side tokens
     
     **Not implemented in Phase 2** (tokens are stateless).
+    Returns 501 so client treats it as a real failure rather than success-with-error-body.
     """
-    return {
-        "error": "not_implemented",
-        "message": "Logout will be implemented in Phase 3+",
-    }
+    raise HTTPException(status_code=501, detail="Logout not implemented in Phase 2")
+
+
+LoginResponse.model_rebuild()

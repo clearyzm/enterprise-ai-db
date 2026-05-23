@@ -24,6 +24,7 @@ from app.utils.errors import ConflictError, NotFoundError, ValidationError
 from app.utils.jsonschema import validate_payload
 from app.utils.filter_parser import FilterParser
 from app.services.workflow_engine import WorkflowEngine
+from app.services.audit_service import log_event
 from app.realtime.redis_bus import get_event_bus
 
 logger = structlog.get_logger(__name__)
@@ -156,6 +157,27 @@ class RecordService:
         version = await engine.submit(version, user)
         await self.db.commit()
         await self.db.refresh(version)
+
+        # Audit log: record update submitted
+        await log_event(
+            self.db,
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            action="update_record",
+            resource_type="record",
+            resource_id=str(record_id),
+            detail={
+                "version_id": str(version.id),
+                "dataset_id": str(dataset.id),
+                "dataset_name": dataset.name,
+                "op": "update",
+                "state": version.state.value,
+                "expected_version": expected_version,
+                "auto_applied": version.state.value == "applied",
+                "reason": reason,
+            },
+        )
+        await self.db.commit()
 
         # Load record if applied
         updated_record = None
@@ -330,7 +352,7 @@ class RecordService:
             )
         )
         if for_update:
-            stmt = stmt.with_for_update()
+            stmt = stmt.with_for_update(of=DataRecord)
 
         result = await self.db.execute(stmt)
         record = result.scalar_one_or_none()
