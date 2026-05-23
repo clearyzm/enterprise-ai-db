@@ -1,5 +1,10 @@
 # Enterprise AI Database
 
+[![Security Tests](https://github.com/clearyzm/enterprise-ai-db/actions/workflows/security-tests.yml/badge.svg)](https://github.com/clearyzm/enterprise-ai-db/actions/workflows/security-tests.yml)
+![Python](https://img.shields.io/badge/python-3.11-blue)
+![PostgreSQL](https://img.shields.io/badge/postgres-16%2BRLS-blue)
+![Next.js](https://img.shields.io/badge/next.js-16-black)
+
 多租户企业 SaaS 数据平台，支持任意结构化数据管理、多级审批流、部门级并发协作，内置权限感知 AI 助手。
 
 **架构：** FastAPI (Python 3.11) + PostgreSQL 16 (pgvector) + Next.js 14 + Redis，基于 RBAC 的多租户隔离，LangGraph 驱动的权限感知 AI 检索。
