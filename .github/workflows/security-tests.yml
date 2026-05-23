@@ -1,0 +1,105 @@
+name: Security Contract Tests
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  pytest-security:
+    name: Run Security Contract Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_test
+          POSTGRES_DB: enterprise_ai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: uv sync --dev
+
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for postgres..."
+            sleep 2
+          done
+
+      - name: Run alembic migrations
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres_test@localhost:5432/enterprise_ai_test
+        run: uv run alembic upgrade head
+
+      - name: Verify RLS test setup
+        env:
+          PGPASSWORD: postgres_test
+        run: |
+          echo "Checking PostgreSQL role and RLS status..."
+          psql -h localhost -U postgres -d enterprise_ai_test -c "SELECT current_user, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user;"
+          psql -h localhost -U postgres -d enterprise_ai_test -c "SELECT count(*) AS rls_enabled_count FROM pg_class WHERE relrowsecurity = true;"
+
+      - name: Run security contract tests
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres_test@localhost:5432/enterprise_ai_test
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET_KEY: test-secret-key-for-ci-only-not-production
+          JWT_ALGORITHM: HS256
+          LLM_API_KEY: ci-placeholder-not-used
+          LLM_BASE_URL: https://api.openai.com/v1
+          LLM_MODEL: gpt-4o-mini
+          LLM_STRONG_MODEL: gpt-4o
+          EMBED_BASE_URL: https://api.openai.com/v1
+          EMBED_API_KEY: ""
+          EMBED_MODEL: text-embedding-3-small
+          EMBED_DIM: 1536
+          APP_ENV: test
+          APP_DEBUG: "false"
+        run: |
+          uv run pytest tests/test_security_contracts.py -v --tb=short
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## 🛡️ Security Contract Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Tests cover three security promises:" >> $GITHUB_STEP_SUMMARY
+          echo "- **A.** Cross-tenant RLS isolation (3 tests)" >> $GITHUB_STEP_SUMMARY
+          echo "- **B.** RBAC permission boundary (2 tests)" >> $GITHUB_STEP_SUMMARY
+          echo "- **C.** AI scope guardrail (2 tests)" >> $GITHUB_STEP_SUMMARY
